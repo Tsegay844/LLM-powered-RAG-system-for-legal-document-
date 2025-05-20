@@ -1,35 +1,29 @@
 # docker-compose.yml
-version: '3.8'
+version: '3.8' # You can safely remove this line as the warning suggests
 
 services:
   rag_service:
+    # Build the Docker image using the Dockerfile located in the ./rag_app directory
     build: ./rag_app
+    # Map local directories to directories inside the container
     volumes:
-      - ./docs:/app/docs:ro
+      # Mount the 'docs' folder from the host to '/app/docs' in the container.
+      - ./docs:/app/docs:ro # read-only mount for docs
+      # Mount the 'data/chroma_db' folder from the host to '/app/chroma_db' in the container.
+      # This is where the ChromaDB index will be stored persistently.
       - ./data/chroma_db:/app/chroma_db
+    # Pass environment variables into the container.
+    # Docker Compose loads these from the host environment or the .env file.
     environment:
       # Pass the Hugging Face API Token
-      # Docker Compose loads this from the host environment or the .env file
       - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
-
-      # Remove or comment out other API keys/local model names
-      # - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      # - OPENAI_API_KEY=${OPENAI_API_KEY}
-      # - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL}
-      # - LOCAL_EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL}
-
-    # No depends_on ollama needed anymore
-    # depends_on:
-    #   - ollama
-
+      # Pass optional model names if set in .env
+      - HF_LLM_MODEL=${HF_LLM_MODEL:-google/flan-t5-large} # Default if not in .env
+      - HF_LLM_TASK=${HF_LLM_TASK:-text2text-generation} # Default if not in .env
+      - LOCAL_EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL:-all-MiniLM-L6-v2} # Default if not in .env
+    # No dependencies on other services needed for this setup
     # ports:
     #   - "your_host_port:your_container_port"
 
-# No named volume for ollama data needed anymore
-# volumes:
-#   ollama_data:
-# Keep the volume for ChromaDB index
-# volumes:
-#   chroma_db_data: # If you prefer a named volume over bind mount
-# If using bind mount for ChromaDB:
-# volumes: {} # If no named volumes are needed
+# No named volumes needed for this setup if using bind mounts like ./data/chroma_db
+# volumes: {}

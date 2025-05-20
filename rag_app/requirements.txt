@@ -1,13 +1,15 @@
+
+
 # rag_app/requirements.txt
 langchain>=0.1.0
-langchain-community>=0.0.19
-huggingface-hub>=0.20.0
-
-# --- This package provides the recommended HuggingFaceEndpoint class ---
-langchain-huggingface>=0.0.3 # Use a recent version
-# --- End Add ---
+langchain-community>=0.0.19 # Includes various integrations and components
+langchain-huggingface>=0.0.3 # Explicitly install the newer HF integration package
+huggingface-hub>=0.20.0 # Required for interacting with Hugging Face Hub
 
 chromadb>=0.4.0
-sentence-transformers>=2.2.0
-pypdf>=3.0.0
-python-dotenv>=1.0.0
+sentence-transformers>=2.2.0 # Needed for local embeddings
+pypdf>=3.0.0 # Needed for reading PDF documents
+python-dotenv>=1.0.0 # Useful for loading .env in local testing
+
+# Add other document loaders if you have docx, etc.
+# python-docx
