@@ -1,0 +1,35 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  rag_service:
+    build: ./rag_app
+    volumes:
+      - ./docs:/app/docs:ro
+      - ./data/chroma_db:/app/chroma_db
+    environment:
+      # Pass the Hugging Face API Token
+      # Docker Compose loads this from the host environment or the .env file
+      - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
+
+      # Remove or comment out other API keys/local model names
+      # - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL}
+      # - LOCAL_EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL}
+
+    # No depends_on ollama needed anymore
+    # depends_on:
+    #   - ollama
+
+    # ports:
+    #   - "your_host_port:your_container_port"
+
+# No named volume for ollama data needed anymore
+# volumes:
+#   ollama_data:
+# Keep the volume for ChromaDB index
+# volumes:
+#   chroma_db_data: # If you prefer a named volume over bind mount
+# If using bind mount for ChromaDB:
+# volumes: {} # If no named volumes are needed

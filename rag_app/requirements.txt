@@ -1,0 +1,13 @@
+# rag_app/requirements.txt
+langchain>=0.1.0
+langchain-community>=0.0.19
+huggingface-hub>=0.20.0
+
+# --- This package provides the recommended HuggingFaceEndpoint class ---
+langchain-huggingface>=0.0.3 # Use a recent version
+# --- End Add ---
+
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+pypdf>=3.0.0
+python-dotenv>=1.0.0

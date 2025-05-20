@@ -1,0 +1,17 @@
+# .gitignore
+# Ignore environment file
+.env
+
+# Ignore generated data directory (ChromaDB index)
+data/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore virtual environment directories if any
+venv/
+.venv/
+
+# Ignore Docker build context files if any
+.dockerignore
