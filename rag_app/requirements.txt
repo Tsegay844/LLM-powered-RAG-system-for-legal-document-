@@ -1,15 +1,28 @@
-
-
 # rag_app/requirements.txt
+# Core LangChain components for document loading, splitting, vector stores, etc.
 langchain>=0.1.0
-langchain-community>=0.0.19 # Includes various integrations and components
-langchain-huggingface>=0.0.3 # Explicitly install the newer HF integration package
-huggingface-hub>=0.20.0 # Required for interacting with Hugging Face Hub
+langchain-community>=0.0.19 # Includes SentenceTransformerEmbeddings and ChromaDB connectors
 
+# Official Google Generative AI Python library
+google-generativeai>=0.3.0 # Use a recent version
+
+# Embedding Model: SentenceTransformer for local embeddings
+# SentenceTransformer is a library; its models are often downloaded from Hugging Face Hub.
+# This is the source of the Hugging Face output you saw, which is expected for this local embedding method.
+sentence-transformers>=2.2.0
+
+# Vector Store: ChromaDB
 chromadb>=0.4.0
-sentence-transformers>=2.2.0 # Needed for local embeddings
-pypdf>=3.0.0 # Needed for reading PDF documents
-python-dotenv>=1.0.0 # Useful for loading .env in local testing
 
-# Add other document loaders if you have docx, etc.
-# python-docx
+# Document Loaders: Libraries needed to read different file types
+pypdf>=3.0.0 # For reading PDF documents
+# If you add support for other formats, add their libraries here (e.g., python-docx)
+
+# Helper to load .env file (useful if running main.py directly outside Docker for testing)
+python-dotenv>=1.0.0
+
+# Remove or comment out any dependencies related to other LLM/Embedding providers if not used
+# langchain-google-genai>=0.0.8
+# langchain-openai>=0.0.8
+# huggingface-hub>=0.20.0
+# ... etc.

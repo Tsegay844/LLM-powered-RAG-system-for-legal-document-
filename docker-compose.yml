@@ -1,29 +1,26 @@
 # docker-compose.yml
-version: '3.8' # You can safely remove this line as the warning suggests
+# Version of the Docker Compose file format
+version: '3.8'
 
+# Define the services (containers) for your application
 services:
   rag_service:
-    # Build the Docker image using the Dockerfile located in the ./rag_app directory
+    # Build the Docker image for this service using the Dockerfile in the ./rag_app directory
     build: ./rag_app
-    # Map local directories to directories inside the container
+    # Define volume mounts to share directories between your host machine and the container
     volumes:
-      # Mount the 'docs' folder from the host to '/app/docs' in the container.
-      - ./docs:/app/docs:ro # read-only mount for docs
-      # Mount the 'data/chroma_db' folder from the host to '/app/chroma_db' in the container.
-      # This is where the ChromaDB index will be stored persistently.
+      # Mount the local 'docs' folder to '/app/docs' inside the container.
+      # 'ro' makes it read-only, preventing the container from modifying your source documents.
+      - ./docs:/app/docs:ro
+      # Mount the local 'data/chroma_db' folder to '/app/chroma_db' inside the container.
+      # This directory is used by ChromaDB to store the persistent index.
       - ./data/chroma_db:/app/chroma_db
     # Pass environment variables into the container.
-    # Docker Compose loads these from the host environment or the .env file.
+    # Docker Compose automatically loads variables from your host environment or the .env file.
     environment:
-      # Pass the Hugging Face API Token
-      - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
-      # Pass optional model names if set in .env
-      - HF_LLM_MODEL=${HF_LLM_MODEL:-google/flan-t5-large} # Default if not in .env
-      - HF_LLM_TASK=${HF_LLM_TASK:-text2text-generation} # Default if not in .env
-      - LOCAL_EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL:-all-MiniLM-L6-v2} # Default if not in .env
-    # No dependencies on other services needed for this setup
+      # Pass the Google API key needed by the google-generativeai library.
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # You can add other environment variables here if your application requires them.
+    # If your application had a web interface, you would map container ports to host ports here:
     # ports:
-    #   - "your_host_port:your_container_port"
-
-# No named volumes needed for this setup if using bind mounts like ./data/chroma_db
-# volumes: {}
+    #   - "host_port:container_port" # Example: "8000:80"
