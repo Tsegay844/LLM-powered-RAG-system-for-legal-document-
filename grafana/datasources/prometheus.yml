@@ -1,0 +1,11 @@
+# grafana/datasources/prometheus.yml
+# This file configures the Prometheus datasource in Grafana automatically
+apiVersion: 1
+
+datasources:
+  - name: Prometheus # Name displayed in Grafana
+    type: prometheus
+    access: proxy # Grafana will proxy requests to Prometheus
+    url: http://prometheus:9090 # Use the Prometheus service name and port on the Docker network
+    isDefault: true # Make this the default datasource
+    editable: true

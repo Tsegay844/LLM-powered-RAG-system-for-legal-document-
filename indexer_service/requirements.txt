@@ -1,0 +1,10 @@
+# indexer_service/requirements.txt
+langchain>=0.1.0
+langchain-community>=0.0.19
+sentence-transformers>=2.2.0 # For SentenceTransformer embeddings
+pypdf>=3.0.0 # For PDF loading
+elasticsearch>=7.17.9,<8.0.0 # Elasticsearch client (ensure version compatibility)
+python-dotenv # For os.getenv, though env vars passed by compose
+
+# Add other document loaders if needed (e.g., python-docx)
+# python-docx

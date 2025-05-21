@@ -2,16 +2,18 @@
 # Ignore environment file
 .env
 
-# Ignore generated data directory (ChromaDB index)
-data/
+# Ignore generated Docker volumes data (managed by Docker)
+# These paths are relevant if you were using bind mounts, but good practice anyway
+data/ # Catch-all for any data bind mounts
+elasticsearch/data/
+prometheus/data/
+grafana/data/
 
-# Ignore Python cache files
+# Python specific
 __pycache__/
 *.pyc
-
-# Ignore virtual environment directories if any
 venv/
 .venv/
 
-# Ignore Docker build context files if any
-.dockerignore
+# Docker specific
+*.swp

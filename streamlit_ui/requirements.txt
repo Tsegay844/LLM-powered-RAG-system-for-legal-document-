@@ -1,0 +1,4 @@
+# streamlit_ui/requirements.txt
+streamlit>=1.20.0
+requests>=2.0.0 # For making HTTP requests to the RAG API
+python-dotenv # For os.getenv

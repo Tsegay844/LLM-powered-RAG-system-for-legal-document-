@@ -1,0 +1,10 @@
+# elasticsearch/elasticsearch.yml
+# Basic Elasticsearch configuration (most config is handled by environment variables in docker-compose)
+cluster.name: "rag-elasticsearch-cluster"
+network.host: 0.0.0.0 # Bind to all network interfaces inside the container
+http.port: 9200
+transport.port: 9300
+# Add JVM options if not using ES_JAVA_OPTS env var
+# jvm.options:
+#   - -Xms512m
+#   - -Xmx512m

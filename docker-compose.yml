@@ -1,26 +1,145 @@
 # docker-compose.yml
-# Version of the Docker Compose file format
-version: '3.8'
+version: '3.8' # Use a recent version
 
-# Define the services (containers) for your application
 services:
-  rag_service:
-    # Build the Docker image for this service using the Dockerfile in the ./rag_app directory
-    build: ./rag_app
-    # Define volume mounts to share directories between your host machine and the container
-    volumes:
-      # Mount the local 'docs' folder to '/app/docs' inside the container.
-      # 'ro' makes it read-only, preventing the container from modifying your source documents.
-      - ./docs:/app/docs:ro
-      # Mount the local 'data/chroma_db' folder to '/app/chroma_db' inside the container.
-      # This directory is used by ChromaDB to store the persistent index.
-      - ./data/chroma_db:/app/chroma_db
-    # Pass environment variables into the container.
-    # Docker Compose automatically loads variables from your host environment or the .env file.
+  # --- Data Storage ---
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9 # Specify a stable 7.x version for compatibility
+    container_name: elasticsearch # Give container a fixed name
     environment:
-      # Pass the Google API key needed by the google-generativeai library.
+      # Basic single-node setup for development
+      - discovery.type=single-node
+      - xpack.security.enabled=false # Disable security for development simplicity
+      # Allow lower memory settings for development (adjust based on your host RAM)
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data # Persistent volume for ES data
+      # Optional: Mount config file if needed (less common for basic setup)
+      # - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+    ports:
+      # Expose ES to host for direct access/management (optional but useful)
+      - "${ELASTICSEARCH_HOST_PORT}:9200"
+      # Expose transport port (optional)
+      # - "9300:9300"
+    healthcheck: # Ensure ES is ready before dependent services start
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\\\"status\":\"yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s # Give ES time to start initially
+
+  # --- LLM Provider (Google Gemini API Wrapper) ---
+  llm_service:
+    build: ./llm_service # Build from Dockerfile in llm_service directory
+    container_name: llm_service
+    environment:
+      # Pass Google API key and model name from .env
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      # You can add other environment variables here if your application requires them.
-    # If your application had a web interface, you would map container ports to host ports here:
-    # ports:
-    #   - "host_port:container_port" # Example: "8000:80"
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME}
+    # No ports exposed to the host; only accessible internally by rag_api_service
+    # Default port for uvicorn/FastAPI inside container is 8000
+
+  # --- Indexing Service ---
+  indexer_service:
+    build: ./indexer_service # Build from Dockerfile in indexer_service directory
+    container_name: indexer_service_runner # Give container a name (for run command)
+    volumes:
+      # Mount the documents directory read-only from the host
+      - ./docs:/app/docs:ro
+    environment:
+      # Pass Elasticsearch connection details
+      - ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST} # Uses service name 'elasticsearch'
+      - ELASTICSEARCH_PORT=${ELASTICSEARCH_PORT} # Uses internal port 9200
+      - ES_INDEX_NAME=${ES_INDEX_NAME}
+      # Pass Embedding model name
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      # Pass document processing config
+      - CHUNK_SIZE=${CHUNK_SIZE}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP}
+    # This service is typically run manually once or on a schedule, NOT continuously
+    # command: python indexer.py # Do NOT auto-start, run with `docker compose run indexer_service ...`
+    depends_on:
+      elasticsearch:
+        condition: service_healthy # Wait for Elasticsearch to be healthy
+
+  # --- RAG Orchestration / API Service ---
+  rag_api_service:
+    build: ./rag_api_service # Build from Dockerfile in rag_api_service directory
+    container_name: rag_api_service
+    environment:
+      # Pass Elasticsearch connection details
+      - ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST} # Uses service name 'elasticsearch'
+      - ELASTICSEARCH_PORT=${ELASTICSEARCH_PORT} # Uses internal port 9200
+      - ES_INDEX_NAME=${ES_INDEX_NAME}
+      # Pass the internal URL of the LLM service
+      - LLM_SERVICE_URL=${LLM_SERVICE_URL} # Uses service name 'llm_service' and internal port 8000
+      # Pass Embedding model name (needed for embedding the query)
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      # Pass retrieval config
+      - RETRIEVAL_K=${RETRIEVAL_K}
+    ports:
+      # Expose the RAG API to the host (for Streamlit UI and testing)
+      - "${RAG_API_PORT}:8000" # Map host port from .env to internal container port 8000
+    depends_on:
+      elasticsearch:
+        condition: service_healthy # Needs Elasticsearch for retrieval
+      llm_service:
+        condition: service_started # Needs LLM service to be available
+
+  # --- User Interface ---
+  streamlit_ui:
+    build: ./streamlit_ui # Build from Dockerfile in streamlit_ui directory
+    container_name: streamlit_ui
+    environment:
+      # Pass the URL of the RAG API service (accessible from the host)
+      #- RAG_API_URL=${RAG_API_URL} # Uses host port, as Streamlit runs on the host network for UI
+      - RAG_API_URL=http://rag_api_service:8000 
+    ports:
+      # Expose Streamlit UI port to the host
+      - "${STREAMLIT_PORT}:8501" # Map host port from .env to internal Streamlit port 8501
+    depends_on:
+      rag_api_service:
+        condition: service_started # UI just needs the RAG API to be reachable
+
+  # --- Monitoring ---
+  prometheus:
+    image: prom/prometheus:v2.47.1 # Specify version
+    container_name: prometheus
+    volumes:
+      # Mount the Prometheus configuration file
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      # Persistent volume for Prometheus data
+      - prometheus_data:/prometheus
+    command: --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles
+    ports:
+      # Expose Prometheus UI
+      - "${PROMETHEUS_PORT}:9090"
+    depends_on:
+      rag_api_service:
+        condition: service_started # Needs the RAG API to scrape metrics from it
+
+  grafana:
+    image: grafana/grafana:10.2.2 # Specify version
+    container_name: grafana
+    environment:
+      # Set admin user and password from .env (initial setup)
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      # Persistent volume for Grafana data, dashboards, etc.
+      - grafana_data:/var/lib/grafana
+      # Optional: Mount datasource configuration if you want to auto-configure Prometheus datasource
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      # Expose Grafana UI
+      - "${GRAFANA_PORT}:3000"
+    depends_on:
+      prometheus:
+        condition: service_started # Grafana needs Prometheus as a data source
+
+# --- Docker Volumes for Persistence ---
+volumes:
+  elasticsearch_data: # Persistent data for Elasticsearch
+  prometheus_data:    # Persistent data for Prometheus
+  grafana_data:       # Persistent data for Grafana
+  # Note: docs volume uses a bind mount (./docs), not a named volume
