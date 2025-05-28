@@ -1,10 +1,5 @@
-Okay, congratulations on getting your project working perfectly! That's a significant achievement, especially with the microservices architecture. A professional README is essential for sharing your work and making it easy for others (or your future self) to understand and run.
-
-Here is a structured and comprehensive README template tailored to your project. Fill in the bracketed placeholders `[...]` with your specific project details.
-
----
-
 # ⚖️ Legal Document Assistant RAG System (Microservices)
+---
 
 A Retrieval-Augmented Generation (RAG) system designed to assist with legal document analysis. This project is built using a microservices architecture orchestrated with Docker Compose, leveraging Elasticsearch for retrieval, the Google Gemini API for generation, Streamlit for the user interface, and Prometheus/Grafana for monitoring and evaluation.
 
