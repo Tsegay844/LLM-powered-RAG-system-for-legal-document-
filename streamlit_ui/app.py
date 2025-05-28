@@ -15,7 +15,7 @@ load_dotenv()
 # --- Streamlit App ---
 # Set the page configuration for Streamlit
 # This sets the title and layout of the Streamlit app
-st.set_page_config(page_title="Legal Document RAG Assistant", layout="wide")
+st.set_page_config(page_title="Legal Document Assistant", layout="wide")
 
 st.title("⚖️ Legal Document RAG Assistant")
 
