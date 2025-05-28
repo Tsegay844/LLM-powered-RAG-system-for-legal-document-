@@ -96,7 +96,7 @@ These services communicate over Docker's internal network. Persistent data is st
     Open `.env` in a text editor and add the following, replacing placeholders with your actual values:
 
     ```dotenv
-    # .env # .env
+    # .env
     # --- API Keys ---
     # Google Generative AI API Key 
     GOOGLE_API_KEY= [PUT your API Key]
@@ -138,9 +138,8 @@ These services communicate over Docker's internal network. Persistent data is st
     
     # Optional: Remove the 'version' attribute warning in docker-compose.yml
     # COMPOSE_IGNORE_ORPHANS=True
+    ```
 
-
-    **Security Note:** The `.env` file contains your API key. **Do NOT commit this file to Git.** Ensure `.env` is listed in your `.gitignore` file.
 
 5.  **Build Docker Images:**
     Navigate to the project root directory in your terminal and build the Docker images for all the services.
