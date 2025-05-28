@@ -102,5 +102,71 @@ These services communicate over Docker's internal network. Persistent data is st
 
 4.  **Configure Environment Variables:**
     Create a `.env` file in the root directory of the project and populate it with the necessary API keys and configuration.
+```bash
+    # In the project root
+    touch .env
+    ```
+
+    Open `.env` in a text editor and add the following, replacing placeholders with your actual values:
+
+    ```dotenv
+    # .env
+
+    # --- API Keys ---
+    # Google Generative AI API Key (for llm_service)
+    # Get this from https://makersuite.google.com/app/apikeys or Google Cloud Console
+    GOOGLE_API_KEY=AIzaSy... # Replace with your actual Google API Key
+
+    # --- Model Configuration ---
+    # Google Gemini LLM Model (for llm_service)
+    # Choose a model available with your Google API Key (e.g., gemini-pro, gemini-1.5-flash-latest)
+    LLM_MODEL_NAME=gemini-1.5-flash-latest # Example: using the current recommended alias
+
+    # Embedding Model (for indexer_service and rag_api_service)
+    # Using a Sentence Transformer model that runs locally in the container
+    EMBEDDING_MODEL=all-MiniLM-L6-v2 # This model is downloaded by the container
+
+    # --- Elasticsearch Configuration ---
+    # Service name in docker-compose internal network (do not change unless changing service name)
+    ELASTICSEARCH_HOST=elasticsearch
+    ELASTICSEARCH_PORT=9200
+    ES_INDEX_NAME=legal_docs # Name of the Elasticsearch index
+
+    # --- RAG API Configuration ---
+    # Retrieval K: Number of documents to retrieve from Elasticsearch for a query
+    RETRIEVAL_K=5
+    # Internal URL of the LLM service (do not change unless changing service name/port)
+    LLM_SERVICE_URL=http://llm_service:8000
+
+    # --- Document Processing Configuration (used by indexer_service) ---
+    CHUNK_SIZE=1000 # Characters per document chunk
+    CHUNK_OVERLAP=200 # Overlap between chunks
+
+    # --- Streamlit UI Configuration ---
+    # URL of the RAG API service (accessible from the host where Streamlit runs)
+    # If Docker runs on localhost, this is http://localhost:8000
+    # If Docker runs on a remote machine, replace localhost with its IP/hostname
+    RAG_API_URL=http://localhost:8000
+
+    # --- Monitoring Configuration ---
+    # Expose ports for UIs on the host machine
+    PROMETHEUS_PORT=9090
+    GRAFANA_PORT=3000
+    RAG_API_PORT=8000
+    STREAMLIT_PORT=8501
+    ELASTICSEARCH_HOST_PORT=9200 # Optional: Port to expose Elasticsearch on the host
+
+    # Grafana Admin User/Password (CHANGE THESE FOR PRODUCTION!)
+    GRAFANA_ADMIN_USER=admin
+    GRAFANA_ADMIN_PASSWORD=admin # !! Change this !!
+
+    # Optional: Remove the 'version' attribute warning in docker-compose.yml
+    # COMPOSE_IGNORE_ORPHANS=True
+    ```
+
+    **Security Note:** The `.env` file contains your API key. **Do NOT commit this file to Git.** Ensure `.env` is listed in your `.gitignore` file.
+
+5.  **Build Docker Images:**
+    Navigate to the project root directory in your terminal and build the
 
     
