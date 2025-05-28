@@ -147,63 +147,57 @@ These services communicate over Docker's internal network. Persistent data is st
     docker compose build
     ```
 
-## ▶️ Running the Project
+## ▶ Running the Project
 
 1.  **Start Infrastructure and Application Services:**
-    This command starts all services except the `indexer_service` (which is a job).
+    This command starts all services except the `indexer_service` (which is one time job to index the documents).
     ```bash
-    docker compose up -d elasticsearch llm_service rag_api_service prometheus grafana streamlit_ui
+    docker compose up -d
     ```
-    *Give the services a minute or two to start up properly, especially Elasticsearch.* You can check their status with `docker compose ps`. Elasticsearch should show as `healthy`.
-
-## 📄 Indexing Documents
-
+   Check their status with `docker compose ps`. Elasticsearch should show as `healthy`.
+   
+2.  **Indexing Documents:**
 The `indexer_service` is run as a separate job whenever you need to index new or updated documents. Ensure Elasticsearch is running (`docker compose ps`).
 
-1.  **Run the Indexing Job:**
+  **Run the Indexing Job:**
     ```bash
     docker compose run --rm indexer_service python indexer.py --recreate-index
     ```
-    *   `docker compose run --rm indexer_service`: Starts a temporary container based on the `indexer_service` image and removes it after the job finishes.
-    *   `python indexer.py`: Executes the indexing script inside the container.
-    *   `--recreate-index`: (Optional, Recommended for initial run) This argument tells the script to delete the existing Elasticsearch index and create a new one before indexing. Omit this flag if you want to add documents to an existing index.
-    *   Monitor the terminal output for indexing progress and completion messages.
 
-2.  **Verify Indexing Progress (Optional):**
+  **Verify Indexing Progress (Optional):**
     While the indexer is running, you can check the number of documents indexed in Elasticsearch:
     ```bash
     curl http://localhost:9200/${ES_INDEX_NAME}/_count
     ```
     Replace `${ES_INDEX_NAME}` with the value from your `.env` (default `legal_docs`).
 
-## 🌐 Using the UI
+3.  **🌐Access Legal document Asisistant UI**
 
 Once all services (`docker compose ps` should show them Up) and the indexing job is complete:
 
-1.  **Access the Streamlit UI:** Open your web browser and go to:
+  **Access the Streamlit UI:** Open your web browser and go to:
     ```
     http://localhost:8501
     ```
     (Using the `STREAMLIT_PORT` from your `.env`)
-2.  **Ask a Question:** Enter your legal question in the text area and click "Get Answer".
-3.  **Provide Feedback:** After receiving an answer, use the "👍 Satisfied" or "👎 Unsatisfied" buttons to provide feedback.
+  **Ask a Question:** Enter your legal question in the text area and click "Get Answer".
+  **Provide Feedback:** After receiving an answer, use the "👍 Satisfied" or "👎 Unsatisfied" buttons to provide feedback.
 
-## 📊 Monitoring and Evaluation
+3.  **📊 Monitoring and Evaluation**
 
 Access the monitoring UIs to observe system performance and user feedback.
-
-1.  **Prometheus UI:**
+  **Prometheus UI:**
     *   Access: `http://localhost:9090` (Using the `PROMETHEUS_PORT` from your `.env`)
     *   Use the "Graph" tab to explore raw metrics or run PromQL queries. Check "Status" -> "Targets" to ensure `rag_api_service:8000` is UP.
 
-2.  **Grafana UI:**
+  **Grafana UI:**
     *   Access: `http://localhost:3000` (Using the `GRAFANA_PORT` from your `.env`)
     *   Log in with the admin user and password from your `.env`. Change the password upon first login.
     *   **Configure Prometheus Datasource:**
         *   Go to "Connections" -> "Data sources" -> "Add data source" -> "Prometheus".
         *   Set the URL to `http://prometheus:9090` (This is the internal Docker service address).
         *   Click "Save & test".
-    *   **Build Dashboards:** Create new dashboards and add panels using the PromQL queries provided in previous responses to visualize metrics like Query Rate, Latency (95th percentile), Error Rates (Overall, LLM, ES), Active Requests, Total Feedback, and Satisfaction Rate.
+    *   **Import Dashboard:** import confgured dashboard and panels from the directory `grafan/dashboard.json`
 
 ## 🛑 Stopping the Project
 
