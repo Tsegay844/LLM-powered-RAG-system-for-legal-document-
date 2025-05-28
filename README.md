@@ -1,6 +1,4 @@
-# ⚖️ Legal Document Assistant RAG System (Microservices)
----
-
+# ⚖️ Legal Document Assistant RAG System (Microservices) ---
 A Retrieval-Augmented Generation (RAG) system designed to assist with legal document analysis. This project is built using a microservices architecture orchestrated with Docker Compose, leveraging Elasticsearch for retrieval, the Google Gemini API for generation, Streamlit for the user interface, and Prometheus/Grafana for monitoring and evaluation.
 
 ## Features
