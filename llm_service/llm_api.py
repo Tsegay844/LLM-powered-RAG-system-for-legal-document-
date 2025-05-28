@@ -1,4 +1,5 @@
 # llm_service/llm_api.py
+# This file provides a FastAPI service that interacts with the Google Gemini LLM API.
 import os
 import sys
 from dotenv import load_dotenv
@@ -6,15 +7,15 @@ from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 import time # Import time for basic timing
 
-# --- Google Generative AI Imports ---
+# Google Generative AI Imports ---
 import google.generativeai as genai
 import google.api_core.exceptions
-# --- End Google Imports ---
 
-# --- Configuration Constants (Read from Environment Variables) ---
+
 # These are set in docker-compose.yml and can be overridden by .env
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gemini-1.5-flash-latest") # Default model name
+
+LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gemini-2.0-flash") 
 
 # --- FastAPI App Setup ---
 app = FastAPI(
@@ -24,8 +25,14 @@ app = FastAPI(
 
 # --- GenAI Configuration ---
 # Flag to indicate if genai configuration was successful
+# This will be set to True if genai.configure is called successfully
+# This is used to check if the service is ready to handle requests
 genai_configured = False
 
+
+# Function to configure the Google Generative AI library
+# This will be called on startup to set the API key
+# It will also set the genai_configured flag to True if successful
 def configure_genai():
     """Configures the Google Generative AI library with the API key."""
     global genai_configured
@@ -35,7 +42,7 @@ def configure_genai():
 
     if not GOOGLE_API_KEY:
         print("Error: GOOGLE_API_KEY environment variable not set. Cannot configure Google Generative AI.", file=sys.stderr)
-        genai_configured = False # Ensure flag is False
+        genai_configured = False 
         # In a real production system, you might want the service to fail startup if this is missing
         return
 
@@ -47,25 +54,40 @@ def configure_genai():
     except Exception as e:
         print(f"Error configuring Google Generative AI: {e}", file=sys.stderr)
         genai_configured = False # Set flag to False on failure
-        # Again, consider sys.exit(1) for production if LLM is mandatory
-
+       
 
 # Configure GenAI when the app starts
+# This will be called automatically by FastAPI on startup
 @app.on_event("startup")
+
+# This function will run when the FastAPI app starts
 async def startup_event():
     # Load .env if running locally without docker-compose
     load_dotenv()
+    # call the configuration function
+    print("Configuring Google Generative AI...")
     configure_genai()
 
-# --- Request Body Model ---
+#  Request Body Model
+# this class defines the structure of the request body for the /generate endpoint
+# it includes the prompt, temperature, and max_output_tokens 
+#
 class PromptRequest(BaseModel):
+    # The prompt text to generate from
+    # This is the main input for the LLM
     prompt: str
-    temperature: float = 0.0 # Allow setting temperature per request
-    max_output_tokens: int = None # Allow setting max tokens per request
+    # Optional parameters for text generation
+    # temperature controls randomness (0.0 = deterministic, 1.0 = more random)
+    temperature: float = 0.0 
+    # max_output_tokens limits the length of the generated text
+    # If not provided, the model's default will be used
+    max_output_tokens: int = None 
 
 # --- API Endpoint ---
-
+# This endpoint generates text based on the provided prompt
 @app.post("/generate")
+# This function handles POST requests to the /generate endpoint
+# it expects a JSON body matching the PromptRequest model
 async def generate_text(request: PromptRequest):
     """
     Generates text using the configured Google Gemini LLM based on the provided prompt.
@@ -76,14 +98,17 @@ async def generate_text(request: PromptRequest):
     if not genai_configured:
          print("Google Generative AI not configured. API key might be missing or invalid.", file=sys.stderr)
          raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="LLM service not configured. API key might be missing or invalid.")
-    # --- End Corrected Check ---
 
+
+    #
     start_time = time.time()
     try:
         print(f"Received prompt (first 150 chars): {request.prompt[:150]}...")
 
         # Get the specific model instance
         # This will raise an error if the model name is invalid or inaccessible with the configured API key
+        # Create a GenerativeModel instance with the specified model name Gemini-2.0-flash
+        # Note: The model name should be set in the environment variable LLM_MODEL_NAME
         model = genai.GenerativeModel(model_name=LLM_MODEL_NAME)
         print(f"Using model: {LLM_MODEL_NAME}")
 
@@ -95,6 +120,10 @@ async def generate_text(request: PromptRequest):
         }
 
         # Prepare the prompt contents for the API call (dictionary format)
+        # The contents should be a list of dictionaries with role and parts
+        # The role is typically "user" for the input prompt
+        # The parts is a list of dictionaries with text
+        # containing the actual prompt text
         contents = [
             {
                 "role": "user",
@@ -105,13 +134,14 @@ async def generate_text(request: PromptRequest):
         ]
 
         # Call the generate_content method to get a response
+        # This method sends the prompt to the LLM and returns the generated content
         response = model.generate_content(
             contents=contents,
             generation_config=generation_config,
-            # safety_settings={} # Optional: configure safety settings
-            # request_options={"timeout": 60} # Optional: set per-request timeout
         )
 
+        # Log the duration of the API call
+        # This will help in monitoring performance
         duration = time.time() - start_time
         print(f"Gemini API call successful in {duration:.2f} seconds.")
 
@@ -181,6 +211,7 @@ async def generate_text(request: PromptRequest):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error during generation: {e}")
 
 # Optional: Basic health check endpoint
+# This endpoint checks if the LLM service is configured and ready to handle requests
 @app.get("/health")
 async def health_check():
     """Basic health check for the LLM service."""
@@ -195,21 +226,7 @@ async def health_check():
               detail_msg += " GOOGLE_API_KEY is not set."
          # Return 503 Service Unavailable with details
          raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={"status": "error", "model": LLM_MODEL_NAME, "configured": False, "detail": detail_msg})
-    # --- End Corrected Health Check ---
+    
 
 
 # To run locally for testing (outside Docker):
-# if __name__ == "__main__":
-#     import uvicorn
-#     load_dotenv()
-#     # To test locally, you need to set the GOOGLE_API_KEY env var
-#     # export GOOGLE_API_KEY="AIzaSy..."
-#     if os.getenv("GOOGLE_API_KEY"):
-#          configure_genai() # Configure GenAI for local run
-#          # Check if configuration was successful before running uvicorn
-#          if genai_configured:
-#               uvicorn.run(app, host="0.0.0.0", port=8000)
-#          else:
-#               print("GenAI configuration failed, cannot start service.", file=sys.stderr)
-#     else:
-#          print("GOOGLE_API_KEY not set. Cannot run LLM service locally.", file=sys.stderr)

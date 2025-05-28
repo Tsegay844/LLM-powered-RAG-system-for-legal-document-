@@ -1,4 +1,5 @@
 # rag_api_service/metrics.py
+#
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CollectorRegistry
 
 # Create a new registry for these metrics (optional but good practice)
@@ -11,12 +12,13 @@ registry = CollectorRegistry()
 RAG_QUERY_TOTAL = Counter(
     'rag_query_total',
     'Total number of RAG queries processed',
-    ['status'],
+    ['status'], # Label for status (success, client_error, server_error)
     registry=registry
 )
 
 # Histogram for query duration
 # Measures the time taken for a complete RAG query process
+# This metric will help identify performance issues in the RAG system
 RAG_QUERY_DURATION_SECONDS = Histogram(
     'rag_query_duration_seconds',
     'Histogram of RAG query duration from start to end',
@@ -45,14 +47,50 @@ ACTIVE_REQUESTS = Gauge(
     registry=registry
 )
 
+# --- NEW METRIC for User Feedback ---
+# Counter for total feedback submitted
+# Label for feedback type (satisfied, unsatisfied, or other types)
+## This metric will help track user satisfaction and feedback trends
+# This can be useful for improving the RAG system based on user input
+# This metric will be incremented each time a user submits feedback
+## It can be used to analyze the effectiveness of the RAG system and identify areas for improvement
+RAG_FEEDBACK_TOTAL = Counter(
+    'rag_feedback_total',           #  This is the metric name
+    'Total number of user feedback submissions',  #  This is the description
+    ['feedback_type'],
+    registry=registry
+)
+# --- END NEW METRIC ---
+
+# --- NEW METRICS for Component Latency ---
+# Histograms to measure the duration of calls to dependencies
+# These metrics will help identify bottlenecks in the RAG system
+# Histogram for Elasticsearch retrieval duration
+# This metric will track how long it takes to retrieve documents from Elasticsearch
+# It can help identify performance issues in the retrieval process  
+#
+RAG_RETRIEVAL_DURATION_SECONDS = Histogram(
+    'rag_retrieval_duration_seconds',
+    'Histogram of duration for Elasticsearch retrieval calls',
+    registry=registry
+)
+
+# Histogram for LLM service API call duration
+# This metric will track how long it takes to call the LLM service API  
+# It can help identify performance issues in the LLM service calls
+
+RAG_LLM_CALL_DURATION_SECONDS = Histogram(
+    'rag_llm_call_duration_seconds',
+    'Histogram of duration for LLM service API calls',
+    registry=registry
+)
+# --- END NEW METRICS ---
+
 
 # Function to get metrics data in Prometheus format
 def get_metrics():
     """Returns metrics data formatted for Prometheus."""
     return generate_latest(registry)
 
-# You can add more metrics as needed, e.g.:
-# - Retrieval duration histogram
-# - LLM call duration histogram
-# - Number of documents retrieved per query histogram
-# - Cache hit/miss ratio (if caching is implemented)
+
+

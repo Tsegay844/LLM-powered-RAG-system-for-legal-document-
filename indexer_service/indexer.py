@@ -1,51 +1,56 @@
 # indexer_service/indexer.py
+# is about indexing legal documents into Elasticsearch using LangChain and SentenceTransformer embeddings.
+# It loads documents from a specified directory, splits them into chunks, generates embeddings,
+# and indexes them into Elasticsearch with robust error handling and retry logic.
 import os
 import sys
 import time
-import argparse # Import argparse for command line arguments
+import argparse 
 from dotenv import load_dotenv
 from typing import List, Dict, Any
-from uuid import uuid4 # To generate unique IDs for ES documents
+from uuid import uuid4 
 
 # LangChain components for document loading/splitting/embedding
+# LangChain is a framework for building applications with language models.
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_core.documents import Document
 
-# Elasticsearch client
+
+# This is the official Elasticsearch Python client
+# It provides a high-level API for interacting with Elasticsearch clusters. 
+# It supports bulk indexing, connection management, and error handling.
 from elasticsearch import Elasticsearch, helpers
 from elasticsearch.exceptions import ConnectionError as ESConnectionError, TransportError as ESTransportError
 
-# --- Configuration Constants (Read from Environment Variables) ---
-# These are set in docker-compose.yml and can be overridden by .env
-DOCS_DIR = os.getenv("DOCS_DIR", "/app/docs") # Default if not set in env (should be set)
-ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", "elasticsearch") # Use service name as default
-ELASTICSEARCH_PORT = int(os.getenv("ELASTICSEARCH_PORT", 9200)) # Default if not set
-ES_INDEX_NAME = os.getenv("ES_INDEX_NAME", "legal_docs") # Default if not set
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2") # Default if not set
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1000)) # Default if not set
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 200)) # Default if not set
+# Configuration Constants (Read from Environment Variables)
+DOCS_DIR = os.getenv("DOCS_DIR", "/app/docs") 
+ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", "elasticsearch") 
+ELASTICSEARCH_PORT = int(os.getenv("ELASTICSEARCH_PORT", 9200)) 
+ES_INDEX_NAME = os.getenv("ES_INDEX_NAME", "legal_docs") # 
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2") 
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1000)) 
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 200)) 
 
-# --- Elasticsearch Setup ---
 
+# This function connects to the Elasticsearch cluster with retry logic.
+# It attempts to connect multiple times with exponential backoff,
+# handling common connection errors gracefully.
 def connect_elasticsearch():
     """Connects to Elasticsearch with retry logic."""
     print(f"Attempting to connect to Elasticsearch at {ELASTICSEARCH_HOST}:{ELASTICSEARCH_PORT}")
     es_client = None
-    # Increased retries and sleep for robustness
     for i in range(15): # Retry up to 15 times
         try:
-            # Use http_auth if security is enabled
             es_client = Elasticsearch(
                 hosts=[{"host": ELASTICSEARCH_HOST, "port": ELASTICSEARCH_PORT, "scheme": "http"}],
-                # http_auth=("user", "password"), # Uncomment if security is enabled
                 timeout=30,
-                sniff_on_start=False, # Disable sniffing on start as it can fail if network is unstable
-                # sniff_timeout=60,
-                # sniffer_timeout=60
+                sniff_on_start=False, 
+                
+                
             )
-            # Use info() instead of ping() for a more robust connection check
+            
             es_client.info()
             print("Connected to Elasticsearch.")
             return es_client
@@ -59,6 +64,10 @@ def connect_elasticsearch():
     print("Failed to connect to Elasticsearch after multiple retries. Exiting.", file=sys.stderr)
     sys.exit(1) # Exit if connection fails
 
+# This function creates an Elasticsearch index if it does not exist.
+# If the index exists and recreate is True, it deletes the existing index and creates a new one.
+# It defines the mapping for the index, specifically for the vector field,
+# using the 'dense_vector' type with HNSW for efficient similarity search.
 def create_index_if_not_exists(es_client: Elasticsearch, index_name: str, vector_dimension: int, recreate: bool = False):
     """Creates or recreates the Elasticsearch index with mapping."""
     index_exists = es_client.indices.exists(index=index_name)
@@ -79,20 +88,20 @@ def create_index_if_not_exists(es_client: Elasticsearch, index_name: str, vector
         # Using the 'dense_vector' type with HNSW for efficient similarity search
         mapping = {
             "properties": {
-                "text": {"type": "text"}, # Original text chunk
+                "text": {"type": "text"},
                 "source": {"type": "keyword"}, # Source file path (use keyword for exact matching/filtering)
-                "page": {"type": "integer"},  # Page number (if applicable)
+                "page": {"type": "integer"}, 
                 "vector": {
                     "type": "dense_vector",
                     "dims": vector_dimension,
-                    # Configure HNSW for faster vector search (Highly Recommended)
                     "index": True,
                     "similarity": "cosine" # Or "l2_norm", "dot_product" depending on your needs/model
                 }
             }
         }
+        # Optional settings for the index : like number of shards/replicas for scaling
+        # Aadjust these settings based on your scaling and performance needs
         settings = {
-            # Optional settings like number of shards/replicas for scaling
             "index": {
                 # "number_of_shards": 1, # Adjust for scaling
                 # "number_of_replicas": 0 # Adjust for high availability
@@ -108,8 +117,9 @@ def create_index_if_not_exists(es_client: Elasticsearch, index_name: str, vector
          print(f"Index '{index_name}' already exists and recreate=False. Skipping index creation.")
 
 
-# --- Document Processing ---
-
+# Document Processing 
+# This class handles loading and splitting documents from a specified directory.
+# It supports multiple file types (PDF, TXT) and uses LangChain's text splitting capabilities to create manageable chunks for indexing.
 class DocumentProcessor:
     """Handles loading and splitting documents from a directory."""
     def __init__(self, docs_directory: str, chunk_size: int, chunk_overlap: int):
@@ -126,6 +136,10 @@ class DocumentProcessor:
             # ".docx": DocxLoader, # Requires python-docx
         }
 
+    # Loads documents from the specified directory, handling different file types.
+    # It uses a mapping of file extensions to LangChain loaders.
+    # If a file type is unsupported, it skips the file and logs a warning.
+    # Returns a list of LangChain Document objects.
     def load_documents(self) -> List[Document]:
         """Loads documents from the configured directory, handling different file types."""
         print(f"Loading documents from {self.docs_directory}...")
@@ -155,6 +169,10 @@ class DocumentProcessor:
         return all_documents
 
 
+    # Splits a list of LangChain Document objects into smaller chunks using the configured text splitter.
+    # This is useful for creating manageable pieces of text for indexing.
+    # Each chunk will have a maximum size defined by chunk_size, with some overlap defined by chunk_overlap.
+    # Returns a list of Document objects, each representing a chunk of text.   
     def split_documents(self, documents: List[Document]) -> List[Document]:
         """Splits a list of LangChain Document objects into smaller chunks."""
         print("Splitting documents into chunks...")
@@ -165,15 +183,21 @@ class DocumentProcessor:
         print(f"Split into {len(split_docs)} chunks.")
         return split_docs
 
-# --- Embedding ---
-
+#Embedding
+# This function initializes the SentenceTransformer embedding model.
+# It uses the model name specified in the environment variable all-MiniLM-L6-v2.
+# It returns an instance of SentenceTransformerEmbeddings().
+# SentenceTransformerEmbeddings is a LangChain wrapper around the popular
+# SentenceTransformers library, which provides state-of-the-art models for
+# generating dense vector embeddings from text. These embeddings are used for
+# semantic search, similarity, and retrieval tasks. The wrapper allows you to
+# easily use SentenceTransformer models within LangChain pipelines.
 def get_embedding_function():
     """Initializes and returns the SentenceTransformer embedding model."""
     print(f"Initializing local embedding model: {EMBEDDING_MODEL}")
     # Using SentenceTransformer for embeddings
     try:
-        embedding = SentenceTransformerEmbeddings(model_name=EMBEDDING_MODEL)
-        # Test embedding to ensure model loads correctly
+        embedding = SentenceTransformerEmbeddings(model_name=EMBEDDING_MODEL)       
         embedding.embed_query("test")
         return embedding
     except Exception as e:
@@ -182,8 +206,10 @@ def get_embedding_function():
         sys.exit(1) # Exit if embedding model fails to load
 
 
-# --- Indexing Logic ---
-
+# Indexing Logic
+# This function generates Elasticsearch bulk indexing actions from a list of LangChain Document objects.
+# It uses the embedding function to generate embeddings for each document chunk.
+# Each action is a dictionary that contains the document ID, index name, and source data.
 def generate_actions(documents: List[Document], embedding_function):
     """Generates Elasticsearch bulk indexing actions from documents."""
     print("Generating embeddings and indexing actions for Elasticsearch...")
@@ -204,8 +230,8 @@ def generate_actions(documents: List[Document], embedding_function):
                 "_index": ES_INDEX_NAME,
                 "_source": {
                     "text": doc.page_content,
-                    "source": doc.metadata.get("source"), # Use original source from loader metadata
-                    "page": doc.metadata.get("page"),   # Use original page from loader metadata (can be None)
+                    "source": doc.metadata.get("source"),
+                    "page": doc.metadata.get("page"),   
                     "vector": embedding
                 }
             }
@@ -214,7 +240,9 @@ def generate_actions(documents: List[Document], embedding_function):
             print(f"Error processing document chunk {i+1}: {e}. Skipping chunk.", file=sys.stderr)
             # Optionally log the chunk content or identifier
 
-
+# This function orchestrates the entire indexing process.
+# It connects to Elasticsearch, creates the index if needed, loads and splits documents,
+# generates embeddings, and indexes the documents using the bulk helper.
 def run_indexing(recreate_index: bool = False):
     """Main function to orchestrate the indexing process."""
     print("--- Starting Indexing Process ---")
@@ -224,8 +252,6 @@ def run_indexing(recreate_index: bool = False):
 
     # 2. Get embedding function and determine vector dimension
     embedding_function = get_embedding_function()
-    # Get the dimension of the embedding vector from a dummy embedding
-    # This is needed for creating the ES index mapping
     try:
          vector_dimension = len(embedding_function.embed_query("test query"))
          print(f"Determined embedding vector dimension: {vector_dimension}")
@@ -255,13 +281,11 @@ def run_indexing(recreate_index: bool = False):
     # chunk_size determines how many documents are sent in one batch
     # max_retries and initial_backoff help handle transient errors
     try:
-        # Use helpers.bulk for efficient indexing
-        # It yields back information about successes and failures
         for ok, item in helpers.bulk(
             es_client,
             generate_actions(split_docs, embedding_function), # Generator function for actions
             index=ES_INDEX_NAME, # Specify the index name here
-            chunk_size=500, # Number of actions per bulk API call
+            chunk_size=1000, # Number of actions per bulk API call
             request_timeout=60, # Timeout for each bulk request
             max_retries=5,
             initial_backoff=2, # Start with a 2-second backoff

@@ -1,6 +1,9 @@
 # rag_api_service/requirements.txt
-langchain>=0.1.0
-langchain-community>=0.0.19
+# Core dependencies for the RAG API service
+# This service integrates the indexer and llm services to provide a RAG API
+langchain>=0.1.0 # Core LangChain library for RAG
+langchain-community>=0.0.19 # Community extensions for LangChain
+pypdf>=3.0.0 # For PDF loading (if needed for document processing)
 elasticsearch>=7.17.9,<8.0.0 # Elasticsearch client (ensure version compatibility)
 sentence-transformers>=2.2.0 # For SentenceTransformer embeddings (to embed query)
 requests>=2.0.0 # HTTP client to call llm_service
