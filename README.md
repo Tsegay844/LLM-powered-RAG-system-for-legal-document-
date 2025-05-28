@@ -12,7 +12,7 @@ A Retrieval-Augmented Generation (RAG) system designed to assist with legal docu
 *   **Prometheus & Grafana Monitoring:** Collect key application metrics (query volume, latency, errors, feedback) and visualize them in real-time dashboards.
 *   **User Feedback:** Capture explicit user feedback (satisfied/unsatisfied) on query results to inform system evaluation and improvement.
 
-## 🏛️ Architecture
+## System Architecture
 
 The project follows a microservices pattern, with each service running in its own Docker container:
 
@@ -63,7 +63,7 @@ These services communicate over Docker's internal network. Persistent data is st
                           +-----------------+
 ```
 
-## 📦 Technologies Used
+## Technologies Used
 
 *   **Orchestration:** Docker, Docker Compose
 *   **Backend Frameworks:** FastAPI (for API services)
@@ -84,84 +84,66 @@ These services communicate over Docker's internal network. Persistent data is st
 
 2.  **Clone the Repository:**
     ```bash
-    git clone [Your GitHub Repo URL]
-    cd [your-repo-name] # Navigate to the project root directory
+    git clone project
+    cd https://github.com/Tsegay844/LLM-powered-RAG-system-for-legal-document-) # Navigate to the project root directory
     ```
-
 3.  **Add Your Documents:**
-    Place your legal documents (PDFs, TXTs) inside the `./docs/` directory in the project root. You can organize them in subfolders.
+    Place your legal documents (PDFs, TXTs) inside the `./docs/` directory in the project root.
 
 4.  **Configure Environment Variables:**
     Create a `.env` file in the root directory of the project and populate it with the necessary API keys and configuration.
-```bash
-    # In the project root
-    touch .env
-    ```
 
     Open `.env` in a text editor and add the following, replacing placeholders with your actual values:
 
     ```dotenv
-    # .env
-
+    # .env # .env
     # --- API Keys ---
-    # Google Generative AI API Key (for llm_service)
-    # Get this from https://makersuite.google.com/app/apikeys or Google Cloud Console
-    GOOGLE_API_KEY=AIzaSy... # Replace with your actual Google API Key
-
-    # --- Model Configuration ---
-    # Google Gemini LLM Model (for llm_service)
-    # Choose a model available with your Google API Key (e.g., gemini-pro, gemini-1.5-flash-latest)
-    LLM_MODEL_NAME=gemini-1.5-flash-latest # Example: using the current recommended alias
-
+    # Google Generative AI API Key 
+    GOOGLE_API_KEY= [PUT your API Key]
+    # Google Gemini LLM Model 
+    LLM_MODEL_NAME=gemini-2.0-flash
     # Embedding Model (for indexer_service and rag_api_service)
-    # Using a Sentence Transformer model that runs locally in the container
-    EMBEDDING_MODEL=all-MiniLM-L6-v2 # This model is downloaded by the container
+    EMBEDDING_MODEL=all-MiniLM-L6-v2
 
-    # --- Elasticsearch Configuration ---
-    # Service name in docker-compose internal network (do not change unless changing service name)
+    # Elasticsearch Configuration
     ELASTICSEARCH_HOST=elasticsearch
     ELASTICSEARCH_PORT=9200
-    ES_INDEX_NAME=legal_docs # Name of the Elasticsearch index
-
-    # --- RAG API Configuration ---
-    # Retrieval K: Number of documents to retrieve from Elasticsearch for a query
-    RETRIEVAL_K=5
-    # Internal URL of the LLM service (do not change unless changing service name/port)
+    ES_INDEX_NAME=legal_docs
+    
+    # RAG API Configuration
+    RETRIEVAL_K=5  # Number of documents to retrieve from Elasticsearch
+    # Internal URL of the LLM service
     LLM_SERVICE_URL=http://llm_service:8000
-
-    # --- Document Processing Configuration (used by indexer_service) ---
-    CHUNK_SIZE=1000 # Characters per document chunk
-    CHUNK_OVERLAP=200 # Overlap between chunks
-
-    # --- Streamlit UI Configuration ---
-    # URL of the RAG API service (accessible from the host where Streamlit runs)
-    # If Docker runs on localhost, this is http://localhost:8000
-    # If Docker runs on a remote machine, replace localhost with its IP/hostname
-    RAG_API_URL=http://localhost:8000
-
-    # --- Monitoring Configuration ---
-    # Expose ports for UIs on the host machine
-    PROMETHEUS_PORT=9090
-    GRAFANA_PORT=3000
+    # RAG API Port (default is 8000)
     RAG_API_PORT=8000
+    
+    # Document Processing Configuration (used by indexer_service)
+    CHUNK_SIZE=1000
+    CHUNK_OVERLAP=200
+    
+    # Streamlit UI Configuration
+    RAG_API_URL=http://localhost:8000
     STREAMLIT_PORT=8501
-    ELASTICSEARCH_HOST_PORT=9200 # Optional: Port to expose Elasticsearch on the host
+    ELASTICSEARCH_HOST_PORT=9200 
 
-    # Grafana Admin User/Password (CHANGE THESE FOR PRODUCTION!)
+    # Monitoring Configuration 
+    # Prometheus Port (default is 9090)
+    PROMETHEUS_PORT=9090
+    # Grafana Port (default is 3000)
+    GRAFANA_PORT=3000
+    # Default admin user is 'admin' and password is 'admin'
+    # !! Change these for production use to secure your Grafana instance !!
     GRAFANA_ADMIN_USER=admin
     GRAFANA_ADMIN_PASSWORD=admin # !! Change this !!
-
+    
     # Optional: Remove the 'version' attribute warning in docker-compose.yml
     # COMPOSE_IGNORE_ORPHANS=True
-    ```
+
 
     **Security Note:** The `.env` file contains your API key. **Do NOT commit this file to Git.** Ensure `.env` is listed in your `.gitignore` file.
 
 5.  **Build Docker Images:**
-    Navigate to the project root directory in your terminal and build the
-
-
- Docker images for the services.
+    Navigate to the project root directory in your terminal and build the Docker images for all the services.
     ```bash
     docker compose build
     ```
